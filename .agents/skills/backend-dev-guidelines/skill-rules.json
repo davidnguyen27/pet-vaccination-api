@@ -1,0 +1,72 @@
+{
+  "skills": {
+    "backend-dev-guidelines": {
+      "type": "domain",
+      "enforcement": "suggest",
+      "priority": "high",
+      "promptTriggers": {
+        "keywords": [
+          "express",
+          "node",
+          "nodejs",
+          "backend",
+          "api",
+          "route",
+          "controller",
+          "service",
+          "repository",
+          "prisma",
+          "zod",
+          "validation",
+          "middleware",
+          "auth",
+          "jwt",
+          "refresh token",
+          "access token",
+          "microchip",
+          "vaccination",
+          "appointment"
+        ],
+        "intentPatterns": [
+          "create.*api",
+          "create.*route",
+          "add.*endpoint",
+          "fix.*controller",
+          "refactor.*service",
+          "setup.*prisma",
+          "handle.*auth",
+          "implement.*refresh.*token",
+          "validate.*request",
+          "build.*module",
+          "thiết kế.*api",
+          "tạo.*api",
+          "tạo.*route",
+          "sửa.*controller",
+          "sửa.*service",
+          "setup.*prisma",
+          "xử lý.*auth",
+          "xử lý.*refresh.*token"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "src/**/*.ts",
+          "prisma/**/*.prisma"
+        ],
+        "contentPatterns": [
+          "express",
+          "Router",
+          "Request",
+          "Response",
+          "NextFunction",
+          "PrismaClient",
+          "@prisma/client",
+          "zod",
+          "jwt",
+          "bcrypt",
+          "cookie"
+        ]
+      }
+    }
+  }
+}

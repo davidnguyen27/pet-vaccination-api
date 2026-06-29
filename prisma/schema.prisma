@@ -1,0 +1,954 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RoleCode {
+  ADMIN
+  STAFF
+  VET
+  OWNER
+}
+
+enum gender {
+  MALE
+  FEMALE
+}
+
+enum species_code {
+  DOG
+  CAT
+}
+
+enum appointment_type {
+  VACCINATION
+  MICROCHIP
+  HEALTH_CERTIFICATE
+}
+
+enum service_type {
+  CLINIC
+  AT_HOME
+}
+
+enum employment_type {
+  FULL_TIME
+  PART_TIME
+}
+
+enum employment_status {
+  WORKING
+  ON_LEAVE
+}
+
+enum appointment_status {
+  PENDING
+  RECEIVED
+  CHECKED_IN
+  SERVICE_DONE
+  COMPLETED
+  CANCELLED
+}
+
+enum vaccination_status {
+  GIVEN
+  NOT_GIVEN
+}
+
+enum vaccine_status {
+  ACTIVE
+  INACTIVE
+}
+
+enum lot_status {
+  AVAILABLE
+  OUT_OF_STOCK
+  EXPIRED
+}
+
+enum plan_status {
+  PLANNED
+  DUE_SOON
+  OVERDUE
+  DONE
+  SKIPPED
+  CANCELLED
+}
+
+enum invoice_status {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
+  REFUNDED
+}
+
+enum invoice_item_type {
+  VACCINATION
+  MICROCHIP
+  HEALTH_CERTIFICATE
+}
+
+enum payment_status {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum payment_method {
+  CASH
+  BANK_TRANSFER
+  PAYOS
+}
+
+enum voucher_status {
+  ACTIVE
+  INACTIVE
+}
+
+enum discount_type {
+  PERCENT
+  FIXED
+}
+
+enum owner_voucher_status {
+  AVAILABLE
+  USED
+  EXPIRED
+  CANCELLED
+}
+
+enum weekday {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+enum block_type {
+  BREAK_TIME
+  TIME_OFF
+  HAVE_APPOINTMENT
+}
+
+enum microchip_status {
+  AVAILABLE
+  USED
+  LOST
+}
+
+enum microchip_source_type {
+  INTERNAL
+  EXTERNAL
+}
+
+enum notification_type {
+  APPOINTMENT_REMINDER
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_CANCELLED
+  INVOICE_ISSUED
+  PAYMENT_CONFIRMED
+  VACCINE_DUE
+  VACCINE_OVERDUE
+  WELCOME
+  GENERAL
+}
+
+enum channel {
+  EMAIL
+  PUSH
+}
+
+enum loyalty_type {
+  EARN
+  REDEEM
+  EXPIRE
+  ADJUST
+}
+
+enum service_price_type {
+  VACCINE
+  MICROCHIP
+  HEALTH_CERTIFICATE
+}
+
+model User {
+  id            String    @id @default(uuid()) @map("_id") @db.Uuid
+  role          RoleCode  @default(OWNER)
+  email         String    @unique @db.VarChar(255)
+  password      String    @db.VarChar(255)
+  full_name     String?   @map("full_name") @db.VarChar(255)
+  phone_number  String?   @map("phone_number") @db.VarChar(20)
+  avatar_url    String?   @map("avatar_url") @db.VarChar(255)
+  dob           DateTime? @db.Date
+  is_active     Boolean   @default(false) @map("is_active")
+  is_deleted    Boolean   @default(false) @map("is_deleted")
+  last_login_at DateTime? @map("last_login_at") @db.Timestamptz(6)
+  created_at    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at    DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  verify_tokens VerifyToken[]
+  refreshTokens RefreshToken[]
+  notifications Notification[]
+  staff         Staff?
+  vet           Vet?
+  owner         Owner?
+
+  @@index([role])
+  @@index([is_deleted])
+  @@map("user")
+}
+
+model RefreshToken {
+  id                String         @id @default(uuid()) @map("_id") @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  tokenHash         String         @unique @map("token_hash") @db.VarChar(255)
+  expiresAt         DateTime       @map("expires_at") @db.Timestamptz(6)
+  revokedAt         DateTime?      @map("revoked_at") @db.Timestamptz(6)
+  lastUsedAt        DateTime?      @map("last_used_at") @db.Timestamptz(6)
+  replacedByTokenId String?        @unique @map("replaced_by_token_id") @db.Uuid
+  userAgent         String?        @map("user_agent") @db.VarChar(500)
+  ipAddress         String?        @map("ip_address") @db.VarChar(50)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  user              User           @relation(fields: [userId], references: [id])
+  replacedByToken   RefreshToken?  @relation("RefreshTokenRotation", fields: [replacedByTokenId], references: [id])
+  replacesTokens    RefreshToken[] @relation("RefreshTokenRotation")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_token")
+}
+
+model VerifyToken {
+  id           String    @id @default(uuid()) @map("_id") @db.Uuid
+  user_id      String    @map("user_id") @db.Uuid
+  token_hash   String    @unique @map("token_hash") @db.VarChar(255)
+  redirect_url String?   @map("redirect_url") @db.VarChar(500)
+  expires_at   DateTime  @map("expires_at") @db.Timestamptz(6)
+  used_at      DateTime? @map("used_at") @db.Timestamptz(6)
+  sent_count   Int       @default(0) @map("sent_count")
+  last_sent_at DateTime? @map("last_sent_at") @db.Timestamptz(6)
+  created_at   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("verify_token")
+}
+
+model Staff {
+  id                String            @id @default(uuid()) @map("_id") @db.Uuid
+  user_id           String            @unique @map("user_id") @db.Uuid
+  code              String            @unique @map("staff_code") @db.VarChar(30)
+  job_title         String?           @map("job_title") @db.VarChar(100)
+  department        String?           @db.VarChar(100)
+  employment_type   employment_type   @map("employment_type")
+  employment_status employment_status @map("employment_status")
+  join_date         DateTime          @map("join_date") @db.Date
+  end_date          DateTime?         @map("end_date") @db.Date
+  address           String            @db.VarChar(255)
+  citizen_id        String            @unique @map("citizen_id") @db.VarChar(30)
+  notes             String?           @db.VarChar(255)
+  created_at        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user         User          @relation(fields: [user_id], references: [id])
+  appointments Appointment[]
+
+  @@index([employment_status])
+  @@index([employment_type])
+  @@index([join_date])
+  @@map("staff")
+}
+
+model Vet {
+  id                 String            @id @default(uuid()) @map("_id") @db.Uuid
+  user_id            String            @unique @map("user_id") @db.Uuid
+  bio                String            @db.VarChar(255)
+  license_no         String            @unique @map("license_no") @db.VarChar(50)
+  license_issue_by   String            @map("license_issue_by") @db.VarChar(255)
+  license_valid_from DateTime          @map("license_valid_from") @db.Date
+  license_valid_to   DateTime          @map("license_valid_to") @db.Date
+  join_date          DateTime          @map("join_date") @db.Date
+  end_date           DateTime?         @map("end_date") @db.Date
+  address            String            @db.VarChar(255)
+  citizen_id         String            @unique @map("citizen_id") @db.VarChar(30)
+  employment_status  employment_status @map("employment_status")
+  created_at         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user               User              @relation(fields: [user_id], references: [id])
+  appointments       Appointment[]
+  microchip_records  MicrochipRecord[]
+  health_cer_records HealthCerRecord[]
+  working_shifts     WorkingShift[]
+  block_times        BlockTime[]
+
+  @@index([join_date])
+  @@index([employment_status])
+  @@map("vet")
+}
+
+model Owner {
+  id           String   @id @default(uuid()) @map("_id") @db.Uuid
+  user_id      String   @unique @map("user_id") @db.Uuid
+  address      String?  @db.VarChar(255)
+  location_lat Float?   @map("location_lat")
+  location_lng Float?   @map("location_lng")
+  total_points Int      @default(0) @map("total_points")
+  created_at   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user           User           @relation(fields: [user_id], references: [id])
+  pets           Pet[]
+  appointments   Appointment[]
+  invoices       Invoice[]
+  payments       Payment[]
+  owner_vouchers OwnerVoucher[]
+  loyalty_points LoyaltyPoint[]
+
+  @@map("owner")
+}
+
+model Species {
+  id                   String       @id @default(uuid()) @map("_id") @db.Uuid
+  code                 species_code @unique
+  name                 String       @unique @db.VarChar(255)
+  default_vaccine_plan Boolean      @default(false) @map("default_vaccine_plan")
+  is_deleted           Boolean      @default(false) @map("is_deleted")
+  created_at           DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at           DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at           DateTime?    @map("deleted_at") @db.Timestamptz(6)
+
+  vaccines Vaccine[]
+  pets     Pet[]
+
+  @@map("species")
+}
+
+model Pet {
+  id            String    @id @default(uuid()) @map("_id") @db.Uuid
+  species_id    String    @map("species_id") @db.Uuid
+  owner_id      String    @map("owner_id") @db.Uuid
+  name          String    @db.VarChar(255)
+  sex           gender
+  dob           DateTime  @db.Date
+  weight        Float
+  color         String    @db.VarChar(200)
+  breed         String    @db.VarChar(200)
+  note          String?   @db.VarChar(255)
+  is_sterilized Boolean   @default(false) @map("is_sterilized")
+  is_deleted    Boolean   @default(false) @map("is_deleted")
+  created_at    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at    DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  species             Species             @relation(fields: [species_id], references: [id])
+  owner               Owner               @relation(fields: [owner_id], references: [id])
+  appointments        Appointment[]
+  vaccination_records VaccinationRecord[]
+  microchip_records   MicrochipRecord[]
+  health_cer_records  HealthCerRecord[]
+  vaccine_plans       VaccinePlan[]
+  microchips          Microchip[]
+
+  @@index([species_id])
+  @@index([owner_id])
+  @@index([is_deleted])
+  @@map("pet")
+}
+
+model Appointment {
+  id                 String             @id @default(uuid()) @map("_id") @db.Uuid
+  pet_id             String             @map("pet_id") @db.Uuid
+  appointment_type   appointment_type   @map("appointment_type")
+  service_type       service_type       @map("service_type")
+  slot_id            String?            @map("slot_id") @db.Uuid
+  staff_id           String?            @map("staff_id") @db.Uuid
+  vet_id             String?            @map("vet_id") @db.Uuid
+  owner_id           String             @map("owner_id") @db.Uuid
+  start_at           DateTime           @map("start_at") @db.Timestamptz(6)
+  end_at             DateTime           @map("end_at") @db.Timestamptz(6)
+  distance           Float?             @map("distance")
+  appointment_status appointment_status @map("appointment_status")
+  cancel_reason      String?            @map("cancel_reason") @db.VarChar(500)
+  notes              String?            @db.VarChar(255)
+  is_deleted         Boolean            @default(false) @map("is_deleted")
+  created_at         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  cancelled_at       DateTime?          @map("cancelled_at") @db.Timestamptz(6)
+  deleted_at         DateTime?          @map("deleted_at") @db.Timestamptz(6)
+
+  pet   Pet              @relation(fields: [pet_id], references: [id])
+  slot  AppointmentSlot? @relation(fields: [slot_id], references: [id])
+  staff Staff?           @relation(fields: [staff_id], references: [id])
+  vet   Vet?             @relation(fields: [vet_id], references: [id])
+  owner Owner            @relation(fields: [owner_id], references: [id])
+
+  vaccination_records VaccinationRecord[]
+  microchip_records   MicrochipRecord[]
+  health_cer_records  HealthCerRecord[]
+  invoices            Invoice[]
+
+  @@index([pet_id])
+  @@index([appointment_type])
+  @@index([appointment_status])
+  @@index([service_type])
+  @@index([slot_id])
+  @@index([staff_id])
+  @@index([vet_id])
+  @@map("appointment")
+}
+
+model Vaccine {
+  id                    String         @id @default(uuid()) @map("_id") @db.Uuid
+  species_id            String         @map("species_id") @db.Uuid
+  code                  String         @unique @db.VarChar(50)
+  name                  String         @unique @db.VarChar(255)
+  brand                 String         @db.VarChar(255)
+  img_url               String?        @map("img_url") @db.VarChar(255)
+  description           String?        @db.VarChar(255)
+  dose_value            Float          @map("dose_value")
+  dose_unit             String         @map("dose_unit") @db.VarChar(20)
+  status                vaccine_status @default(ACTIVE) @map("status")
+  default_total_doses   Int            @map("default_total_doses")
+  default_next_due_days Int            @map("default_next_due_days")
+  is_deleted            Boolean        @default(false) @map("is_deleted")
+  created_at            DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at            DateTime?      @map("deleted_at") @db.Timestamptz(6)
+
+  species       Species       @relation(fields: [species_id], references: [id])
+  vaccine_lots  VaccineLot[]
+  vaccine_plans VaccinePlan[]
+
+  @@index([species_id])
+  @@index([name])
+  @@index([brand])
+  @@index([status])
+  @@index([is_deleted])
+  @@map("vaccine")
+}
+
+model VaccineLot {
+  id               String     @id @default(uuid()) @map("_id") @db.Uuid
+  vaccine_id       String     @map("vaccine_id") @db.Uuid
+  lot_no           String     @map("lot_no") @db.VarChar(80)
+  mfg_date         DateTime   @map("mfg_date") @db.Date
+  exp_date         DateTime   @map("exp_date") @db.Date
+  initial_quantity Int        @map("initial_quantity")
+  quantity_on_hand Int        @map("quantity_on_hand")
+  storage_temp_min Float      @map("storage_temp_min")
+  storage_temp_max Float      @map("storage_temp_max")
+  status           lot_status @default(AVAILABLE) @map("status")
+  is_deleted       Boolean    @default(false) @map("is_deleted")
+  created_at       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at       DateTime?  @map("deleted_at") @db.Timestamptz(6)
+
+  vaccine             Vaccine             @relation(fields: [vaccine_id], references: [id])
+  vaccination_records VaccinationRecord[]
+
+  @@index([vaccine_id])
+  @@index([status])
+  @@index([is_deleted])
+  @@map("vaccine_lot")
+}
+
+model VaccinationRecord {
+  id              String             @id @default(uuid()) @map("_id") @db.Uuid
+  appointment_id  String?            @map("appointment_id") @db.Uuid
+  pet_id          String             @map("pet_id") @db.Uuid
+  vaccine_lot_id  String             @map("vaccine_lot_id") @db.Uuid
+  dose_no         Int                @map("dose_no")
+  administered_at DateTime           @map("administered_at") @db.Timestamptz(6)
+  status          vaccination_status @map("status")
+  next_due_date   DateTime?          @map("next_due_date") @db.Date
+  created_at      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  appointment  Appointment? @relation(fields: [appointment_id], references: [id])
+  vaccine_lot  VaccineLot   @relation(fields: [vaccine_lot_id], references: [id])
+  pet          Pet          @relation(fields: [pet_id], references: [id])
+  invoice_item InvoiceItem?
+  vaccine_plan VaccinePlan?
+
+  @@map("vaccination_record")
+}
+
+model VaccinePlan {
+  id                    String      @id @default(uuid()) @map("_id") @db.Uuid
+  pet_id                String      @map("pet_id") @db.Uuid
+  vaccine_id            String      @map("vaccine_id") @db.Uuid
+  dose_no               Int         @map("dose_no")
+  due_date              DateTime    @map("due_date") @db.Date
+  due_from              DateTime?   @map("due_from") @db.Date
+  due_to                DateTime?   @map("due_to") @db.Date
+  status                plan_status @map("status")
+  vaccination_record_id String?     @unique @map("vaccination_record_id") @db.Uuid
+  completed_at          DateTime?   @map("completed_at") @db.Timestamptz(6)
+  remind_at             DateTime?   @map("remind_at") @db.Timestamptz(6)
+  last_reminded_at      DateTime?   @map("last_reminded_at") @db.Timestamptz(6)
+  note                  String?     @db.VarChar(255)
+  is_deleted            Boolean     @default(false) @map("is_deleted")
+  created_at            DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at            DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at            DateTime?   @map("deleted_at") @db.Timestamptz(6)
+
+  pet                Pet                @relation(fields: [pet_id], references: [id])
+  vaccine            Vaccine            @relation(fields: [vaccine_id], references: [id])
+  vaccination_record VaccinationRecord? @relation(fields: [vaccination_record_id], references: [id])
+
+  @@index([pet_id, vaccine_id, dose_no])
+  @@index([pet_id])
+  @@index([status])
+  @@index([due_date])
+  @@index([is_deleted])
+  @@map("vaccine_plan")
+}
+
+model MicrochipBatch {
+  id             String    @id @default(uuid()) @map("_id") @db.Uuid
+  batch_no       String    @unique @map("batch_no") @db.VarChar(80)
+  vendor_name    String    @db.VarChar(150)
+  manufacturer   String    @db.VarChar(150)
+  model          String    @db.VarChar(100)
+  import_date    DateTime  @map("import_date") @db.Date
+  total_quantity Int       @default(0) @map("total_quantity")
+  notes          String?   @db.VarChar(255)
+  is_deleted     Boolean   @default(false) @map("is_deleted")
+  created_at     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at     DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  microchips Microchip[]
+
+  @@map("microchip_batch")
+}
+
+model Microchip {
+  id             String           @id @default(uuid()) @map("_id") @db.Uuid
+  batch_id       String           @map("batch_id") @db.Uuid
+  microchip_code String           @unique @map("microchip_code") @db.VarChar(50)
+  status         microchip_status @default(AVAILABLE) @map("status")
+  pet_id         String?          @map("pet_id") @db.Uuid
+  is_deleted     Boolean          @default(false) @map("is_deleted")
+  created_at     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at     DateTime?        @map("deleted_at") @db.Timestamptz(6)
+
+  microchip_batch   MicrochipBatch    @relation(fields: [batch_id], references: [id])
+  pet               Pet?              @relation(fields: [pet_id], references: [id])
+  microchip_records MicrochipRecord[]
+
+  @@index([batch_id])
+  @@index([status])
+  @@index([pet_id])
+  @@index([is_deleted])
+  @@map("microchip")
+}
+
+model MicrochipRecord {
+  id                String                @id @default(uuid()) @map("_id") @db.Uuid
+  appointment_id    String?               @map("appointment_id") @db.Uuid
+  vet_id            String                @map("vet_id") @db.Uuid
+  pet_id            String                @map("pet_id") @db.Uuid
+  microchip_item_id String?               @map("microchip_item_id") @db.Uuid
+  microchip_code    String                @map("microchip_code") @db.VarChar(50)
+  source_type       microchip_source_type @default(INTERNAL) @map("source_type")
+  is_valid          Boolean               @default(true) @map("is_valid")
+  implant_site      String?               @map("implant_site") @db.VarChar(100)
+  implanted_at      DateTime?             @map("implanted_at") @db.Timestamptz(6)
+  scanned_at        DateTime?             @map("scanned_at") @db.Timestamptz(6)
+  notes             String?               @db.VarChar(500)
+  created_at        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at        DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  appointment    Appointment? @relation(fields: [appointment_id], references: [id])
+  vet            Vet          @relation(fields: [vet_id], references: [id])
+  microchip_item Microchip?   @relation(fields: [microchip_item_id], references: [id])
+  pet            Pet          @relation(fields: [pet_id], references: [id])
+  invoice_item   InvoiceItem?
+
+  @@index([appointment_id])
+  @@index([vet_id])
+  @@index([pet_id])
+  @@index([microchip_item_id])
+  @@index([microchip_code])
+  @@index([source_type])
+  @@map("microchip_record")
+}
+
+model HealthCerRecord {
+  id              String   @id @default(uuid()) @map("_id") @db.Uuid
+  appointment_id  String?  @map("appointment_id") @db.Uuid
+  pet_id          String   @map("pet_id") @db.Uuid
+  vet_id          String   @map("vet_id") @db.Uuid
+  certificate_no  String   @unique @map("certificate_no") @db.VarChar(50)
+  issued_at       DateTime @map("issued_at") @db.Date
+  valid_from      DateTime @map("valid_from") @db.Date
+  valid_to        DateTime @map("valid_to") @db.Date
+  exam_summary    String?  @db.VarChar(255)
+  findings        String?  @db.VarChar(255)
+  diagnosis       String?  @db.VarChar(255)
+  recommendations String?  @db.VarChar(255)
+  restrictions    String?  @db.VarChar(255)
+  temperature     Float?   @map("temperature")
+  weight          Float?   @map("weight")
+  pdf_url         String?  @map("pdf_url") @db.VarChar(255)
+  created_at      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  appointment  Appointment? @relation(fields: [appointment_id], references: [id])
+  vet          Vet          @relation(fields: [vet_id], references: [id])
+  pet          Pet          @relation(fields: [pet_id], references: [id])
+  invoice_item InvoiceItem?
+
+  @@index([appointment_id])
+  @@index([issued_at])
+  @@index([valid_to])
+  @@map("health_cer_record")
+}
+
+model Invoice {
+  id             String         @id @default(uuid()) @map("_id") @db.Uuid
+  appointment_id String         @map("appointment_id") @db.Uuid
+  owner_id       String         @map("owner_id") @db.Uuid
+  invoice_code   String         @unique @map("invoice_code") @db.VarChar(50)
+  invoice_no     String         @unique @map("invoice_no") @db.VarChar(50)
+  issued_at      DateTime?      @map("issued_at") @db.Timestamptz(6)
+  due_at         DateTime?      @map("due_at") @db.Timestamptz(6)
+  status         invoice_status @default(DRAFT) @map("status")
+  currency       String         @default("VND") @map("currency") @db.VarChar(10)
+  sub_total      Decimal        @map("sub_total") @db.Decimal(12, 2)
+  discount_total Decimal        @map("discount_total") @db.Decimal(12, 2)
+  tax_total      Decimal        @default(0) @map("tax_total") @db.Decimal(12, 2)
+  total          Decimal        @default(0) @map("total") @db.Decimal(12, 2)
+  paid_total     Decimal        @default(0) @map("paid_total") @db.Decimal(12, 2)
+  balance_due    Decimal        @default(0) @map("balance_due") @db.Decimal(12, 2)
+  notes          String?        @db.VarChar(255)
+  is_deleted     Boolean        @default(false) @map("is_deleted")
+  created_at     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at     DateTime?      @map("deleted_at") @db.Timestamptz(6)
+
+  appointment      Appointment      @relation(fields: [appointment_id], references: [id])
+  owner            Owner            @relation(fields: [owner_id], references: [id])
+  invoice_items    InvoiceItem[]
+  payments         Payment[]
+  owner_vouchers   OwnerVoucher[]
+  invoice_vouchers InvoiceVoucher[]
+  loyalty_points   LoyaltyPoint[]
+
+  @@index([appointment_id])
+  @@index([owner_id])
+  @@index([status])
+  @@index([issued_at])
+  @@index([is_deleted])
+  @@map("invoice")
+}
+
+model InvoiceItem {
+  id                    String            @id @default(uuid()) @map("_id") @db.Uuid
+  invoice_id            String            @map("invoice_id") @db.Uuid
+  item_name             String            @map("item_name") @db.VarChar(255)
+  item_type             invoice_item_type @map("item_type")
+  vaccination_record_id String?           @unique @map("vaccination_record_id") @db.Uuid
+  microchip_record_id   String?           @unique @map("microchip_record_id") @db.Uuid
+  health_cer_record_id  String?           @unique @map("health_cer_record_id") @db.Uuid
+  unit_price            Decimal           @map("unit_price") @db.Decimal(12, 2)
+  discount_amount       Decimal           @map("discount_amount") @db.Decimal(12, 2)
+  line_total            Decimal           @map("line_total") @db.Decimal(12, 2)
+  notes                 String?           @map("notes") @db.VarChar(255)
+  is_deleted            Boolean           @default(false) @map("is_deleted")
+  created_at            DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at            DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at            DateTime?         @map("deleted_at") @db.Timestamptz(6)
+
+  vaccination_record VaccinationRecord? @relation(fields: [vaccination_record_id], references: [id])
+  microchip_record   MicrochipRecord?   @relation(fields: [microchip_record_id], references: [id])
+  health_certificate HealthCerRecord?   @relation(fields: [health_cer_record_id], references: [id])
+  invoice            Invoice            @relation(fields: [invoice_id], references: [id])
+
+  @@index([invoice_id])
+  @@index([item_type])
+  @@index([is_deleted])
+  @@map("invoice_item")
+}
+
+model Payment {
+  id              String         @id @default(uuid()) @map("_id") @db.Uuid
+  invoice_id      String         @map("invoice_id") @db.Uuid
+  owner_id        String         @map("owner_id") @db.Uuid
+  amount          Decimal        @map("amount") @db.Decimal(12, 2)
+  method          payment_method @map("method")
+  status          payment_status @default(PENDING) @map("status")
+  paid_at         DateTime?      @map("paid_at") @db.Timestamptz(6)
+  transaction_ref String?        @map("transaction_ref") @db.VarChar(100)
+  provider        String?        @db.VarChar(100)
+  payos_order_id  String?        @map("payos_order_id") @db.VarChar(100)
+  checkout_url    String?        @map("checkout_url") @db.VarChar(500)
+  notes           String?        @db.VarChar(255)
+  is_deleted      Boolean        @default(false) @map("is_deleted")
+  created_at      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at      DateTime?      @map("deleted_at") @db.Timestamptz(6)
+
+  invoice Invoice @relation(fields: [invoice_id], references: [id])
+  owner   Owner   @relation(fields: [owner_id], references: [id])
+
+  @@index([invoice_id])
+  @@index([owner_id])
+  @@index([status])
+  @@index([paid_at])
+  @@index([is_deleted])
+  @@map("payment")
+}
+
+model Voucher {
+  id                  String         @id @default(uuid()) @map("_id") @db.Uuid
+  code                String         @unique @db.VarChar(50)
+  name                String         @db.VarChar(255)
+  description         String?        @db.VarChar(255)
+  discount_type       discount_type  @map("discount_type")
+  discount_value      Decimal        @map("discount_value") @db.Decimal(12, 2)
+  max_discount        Decimal?       @map("max_discount") @db.Decimal(12, 2)
+  min_order_amount    Decimal?       @map("min_order_amount") @db.Decimal(12, 2)
+  start_at            DateTime       @map("start_at") @db.Timestamptz(6)
+  end_at              DateTime       @map("end_at") @db.Timestamptz(6)
+  usage_limit_total   Int?           @map("usage_limit_total")
+  usage_limit_per_own Int?           @map("usage_limit_per_own")
+  status              voucher_status @default(ACTIVE) @map("status")
+  is_deleted          Boolean        @default(false) @map("is_deleted")
+  created_at          DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at          DateTime?      @map("deleted_at") @db.Timestamptz(6)
+
+  owner_vouchers   OwnerVoucher[]
+  invoice_vouchers InvoiceVoucher[]
+
+  @@index([code])
+  @@index([status])
+  @@index([start_at])
+  @@index([end_at])
+  @@index([is_deleted])
+  @@map("voucher")
+}
+
+model OwnerVoucher {
+  id          String               @id @default(uuid()) @map("_id") @db.Uuid
+  owner_id    String               @map("owner_id") @db.Uuid
+  voucher_id  String               @map("voucher_id") @db.Uuid
+  status      owner_voucher_status @map("status")
+  assigned_at DateTime             @map("assigned_at") @db.Timestamptz(6)
+  used_at     DateTime?            @map("used_at") @db.Timestamptz(6)
+  invoice_id  String?              @map("invoice_id") @db.Uuid
+  expires_at  DateTime             @map("expires_at") @db.Timestamptz(6)
+  notes       String?              @map("notes") @db.VarChar(255)
+  is_deleted  Boolean              @default(false) @map("is_deleted")
+  created_at  DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at  DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at  DateTime?            @map("deleted_at") @db.Timestamptz(6)
+
+  owner            Owner            @relation(fields: [owner_id], references: [id])
+  voucher          Voucher          @relation(fields: [voucher_id], references: [id])
+  invoice          Invoice?         @relation(fields: [invoice_id], references: [id])
+  invoice_vouchers InvoiceVoucher[]
+
+  @@index([owner_id])
+  @@index([voucher_id])
+  @@index([status])
+  @@index([assigned_at])
+  @@index([invoice_id])
+  @@index([is_deleted])
+  @@map("owner_voucher")
+}
+
+model InvoiceVoucher {
+  id               String        @id @default(uuid()) @map("_id") @db.Uuid
+  invoice_id       String        @map("invoice_id") @db.Uuid
+  voucher_id       String        @map("voucher_id") @db.Uuid
+  owner_voucher_id String?       @map("owner_voucher_id") @db.Uuid
+  discount_type    discount_type @map("discount_type")
+  discount_value   Decimal       @map("discount_value") @db.Decimal(12, 2)
+  discount_amount  Decimal       @map("discount_amount") @db.Decimal(12, 2)
+  applied_at       DateTime      @map("applied_at") @db.Timestamptz(6)
+  notes            String?       @db.VarChar(255)
+  is_deleted       Boolean       @default(false) @map("is_deleted")
+  created_at       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at       DateTime?     @map("deleted_at") @db.Timestamptz(6)
+
+  invoice       Invoice       @relation(fields: [invoice_id], references: [id])
+  voucher       Voucher       @relation(fields: [voucher_id], references: [id])
+  owner_voucher OwnerVoucher? @relation(fields: [owner_voucher_id], references: [id])
+
+  @@index([invoice_id])
+  @@index([voucher_id])
+  @@index([owner_voucher_id])
+  @@index([applied_at])
+  @@index([is_deleted])
+  @@map("invoice_voucher")
+}
+
+model LoyaltyPoint {
+  id             String       @id @default(uuid()) @map("_id") @db.Uuid
+  owner_id       String       @map("owner_id") @db.Uuid
+  invoice_id     String?      @map("invoice_id") @db.Uuid
+  type           loyalty_type @map("type")
+  points         Int          @map("points")
+  points_balance Int          @map("points_balance")
+  reason         String?      @map("reason") @db.VarChar(255)
+  created_at     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner   Owner    @relation(fields: [owner_id], references: [id])
+  invoice Invoice? @relation(fields: [invoice_id], references: [id])
+
+  @@index([owner_id])
+  @@index([invoice_id])
+  @@map("loyalty_point")
+}
+
+model Notification {
+  id             String            @id @default(uuid()) @map("_id") @db.Uuid
+  user_id        String            @map("user_id") @db.Uuid
+  type           notification_type @map("type")
+  channel        channel           @map("channel")
+  title          String            @db.VarChar(255)
+  body           String            @db.VarChar(1000)
+  is_read        Boolean           @default(false) @map("is_read")
+  read_at        DateTime?         @map("read_at") @db.Timestamptz(6)
+  scheduled_at   DateTime?         @map("scheduled_at") @db.Timestamptz(6)
+  sent_at        DateTime?         @map("sent_at") @db.Timestamptz(6)
+  reference_id   String?           @map("reference_id") @db.Uuid
+  reference_type String?           @map("reference_type") @db.VarChar(50)
+  metadata       String?           @db.VarChar(500)
+  created_at     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([type])
+  @@index([is_read])
+  @@index([scheduled_at])
+  @@index([sent_at])
+  @@map("notification")
+}
+
+model WorkingShift {
+  id               String    @id @default(uuid()) @map("_id") @db.Uuid
+  vet_id           String    @map("vet_id") @db.Uuid
+  day_of_week      weekday   @map("day_of_week")
+  start_time       DateTime  @map("start_time") @db.Time
+  end_time         DateTime  @map("end_time") @db.Time
+  slot_duration    Int       @default(30) @map("slot_duration") // in minutes
+  max_appointments Int       @default(1) @map("max_appointments")
+  notes            String?   @db.VarChar(255)
+  is_deleted       Boolean   @default(false) @map("is_deleted")
+  created_at       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at       DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  vet               Vet               @relation(fields: [vet_id], references: [id])
+  appointment_slots AppointmentSlot[]
+
+  @@index([vet_id])
+  @@index([vet_id, day_of_week])
+  @@index([is_deleted])
+  @@map("working_shift")
+}
+
+model AppointmentSlot {
+  id               String    @id @default(uuid()) @map("_id") @db.Uuid
+  shift_id         String    @map("shift_id") @db.Uuid
+  slot_date        DateTime  @map("slot_date") @db.Date
+  start_time       DateTime  @map("start_time") @db.Time
+  end_time         DateTime  @map("end_time") @db.Time
+  booked_count     Int       @default(0) @map("booked_count")
+  max_appointments Int       @map("max_appointments")
+  is_deleted       Boolean   @default(false) @map("is_deleted")
+  created_at       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at       DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  shift        WorkingShift  @relation(fields: [shift_id], references: [id])
+  appointments Appointment[]
+
+  @@unique([shift_id, slot_date, start_time])
+  @@index([slot_date])
+  @@index([is_deleted])
+  @@map("appointment_slot")
+}
+
+model BlockTime {
+  id         String     @id @default(uuid()) @map("_id") @db.Uuid
+  vet_id     String     @map("vet_id") @db.Uuid
+  type       block_type @default(TIME_OFF) @map("type")
+  start_at   DateTime   @map("start_at") @db.Timestamptz(6)
+  end_at     DateTime   @map("end_at") @db.Timestamptz(6)
+  reason     String?    @map("reason") @db.VarChar(255)
+  is_deleted Boolean    @default(false) @map("is_deleted")
+  created_at DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at DateTime?  @map("deleted_at") @db.Timestamptz(6)
+
+  vet Vet @relation(fields: [vet_id], references: [id])
+
+  @@index([vet_id])
+  @@index([start_at])
+  @@index([end_at])
+  @@index([is_deleted])
+  @@map("block_time")
+}
+
+model ServicePrice {
+  id             String             @id @default(uuid()) @map("_id") @db.Uuid
+  type           service_price_type @map("type")
+  reference_id   String?            @map("reference_id") @db.Uuid
+  name           String             @db.VarChar(255)
+  unit_price     Decimal            @map("unit_price") @db.Decimal(12, 2)
+  currency       String             @default("VND") @db.VarChar(10)
+  effective_from DateTime           @map("effective_from") @db.Date
+  effective_to   DateTime?          @map("effective_to") @db.Date
+  is_active      Boolean            @default(true) @map("is_active")
+  notes          String?            @db.VarChar(255)
+  created_at     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at     DateTime?          @map("deleted_at") @db.Timestamptz(6)
+
+  @@index([type])
+  @@index([reference_id])
+  @@index([is_active])
+  @@index([effective_from])
+  @@map("service_price")
+}
+
+model ImgGallery {
+  id         String    @id @default(uuid()) @map("_id") @db.Uuid
+  img_url    String    @map("img_url") @db.VarChar(255)
+  is_deleted Boolean   @default(false) @map("is_deleted")
+  created_at DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updated_at DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deleted_at DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  @@map("img_gallery")
+}
