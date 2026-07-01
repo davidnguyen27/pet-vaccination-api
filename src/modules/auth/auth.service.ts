@@ -1,64 +1,47 @@
 import bcrypt from 'bcryptjs'
-import jwt, { type SignOptions } from 'jsonwebtoken'
+import jwt from 'jsonwebtoken'
 
-import { env } from '../../core/env/index.js'
-import { AppError } from '../../core/errors/app-error.js'
-import type { AuthRepository } from './auth.repository.js'
-import type {
-  AuthJwtPayload,
-  AuthUserPublicRecord,
-  AuthUserResponseDTO,
-  LoginDTO,
-  LoginResponseDTO
-} from './auth.type.js'
+import { env } from '~/core/env'
+import { AppError } from '~/core/errors'
+import { HttpStatus } from '~/core/enums/http-status'
+import { VERIFY_TOKEN_EXPIRES_IN_MS } from '~/core/constants/auth.constant'
 
-type JwtWithExp = AuthJwtPayload & {
+import { AuthRepository } from './auth.repository'
+import { generateSecureToken, getJwtConfig, getRefreshJwtConfig, hashToken } from './auth.helper'
+
+import type { LoginDTO } from './dtos/login.dto'
+import type { VerifyTokenDTO, VerifyTokenResponseDTO } from './dtos/verify-token.dto'
+import type { ResendVerifyTokenDTO, ResendVerifyTokenResponseDTO } from './dtos/resend-token.dto'
+
+import type { AuthJwtPayload, AuthRefreshJwtPayload, LoginResult } from './auth.type'
+import { authMapper } from './auth.mapper'
+
+type JwtExpires = AuthJwtPayload & {
   exp?: number
 }
 
-function getJwtConfig(): { secret: string; expiresIn: SignOptions['expiresIn'] } {
-  return {
-    secret: env.JWT_ACCESS_SECRET,
-    expiresIn: env.JWT_ACCESS_EXPIRES_IN as SignOptions['expiresIn']
-  }
+type RefreshJwtExpires = AuthRefreshJwtPayload & {
+  exp?: number
 }
 
-function toAuthUserResponse(user: AuthUserPublicRecord): AuthUserResponseDTO {
-  return {
-    id: user.id,
-    email: user.email,
-    role: user.role,
-    is_active: user.is_active,
-    is_deleted: user.is_deleted,
-    full_name: user.full_name,
-    phone_number: user.phone_number,
-    avatar_url: user.avatar_url,
-    dob: user.dob?.toISOString() ?? null,
-    created_at: user.created_at.toISOString(),
-    updated_at: user.updated_at.toISOString(),
-    deleted_at: user.deleted_at?.toISOString() ?? null,
-    last_login_at: user.last_login_at?.toISOString() ?? null
-  }
-}
-
-export class AuthService {
+export default class AuthService {
   constructor(private readonly repository: AuthRepository) {}
 
-  async login(dto: LoginDTO): Promise<LoginResponseDTO> {
+  public async login(dto: LoginDTO, context: { userAgent?: string; ipAddress?: string }): Promise<LoginResult> {
     const user = await this.repository.findUserByEmail(dto.email)
 
     if (!user || !user.is_active) {
-      throw new AppError('Invalid email or password', 401)
+      throw new AppError('Please activate your account first', HttpStatus.BAD_REQUEST)
     }
 
     if (user.is_deleted) {
-      throw new AppError('Your account has been deleted. Please contact support.', 403)
+      throw new AppError('Your account has been deleted. Please contact support', HttpStatus.FORBIDDEN)
     }
 
-    const is_password_valid = await bcrypt.compare(dto.password, user.password)
+    const isPasswordValid = await bcrypt.compare(dto.password, user.password)
 
-    if (!is_password_valid) {
-      throw new AppError('Invalid email or password', 401)
+    if (!isPasswordValid) {
+      throw new AppError('Invalid email or password', HttpStatus.UNAUTHORIZED)
     }
 
     const payload: AuthJwtPayload = {
@@ -68,18 +51,102 @@ export class AuthService {
     }
 
     const { secret, expiresIn } = getJwtConfig()
-    const access_token = jwt.sign(payload, secret, { expiresIn })
-    const decoded = jwt.decode(access_token) as JwtWithExp | null
-    const updated_user = await this.repository.updateLastLogin(user.id, new Date())
+    const accessToken = jwt.sign(payload, secret, { expiresIn })
+    const decoded = jwt.decode(accessToken) as JwtExpires | null
+    const updatedUser = await this.repository.updateLastLogin(user.id, new Date())
+
+    const refreshPayload: AuthRefreshJwtPayload = { sub: user.id }
+    const refreshConfig = getRefreshJwtConfig()
+    const refreshToken = jwt.sign(refreshPayload, refreshConfig.secret, { expiresIn: refreshConfig.expiresIn })
+    const refreshDecoded = jwt.decode(refreshToken) as RefreshJwtExpires | null
+    const refreshExpiresAt = refreshDecoded?.exp
+      ? new Date(refreshDecoded.exp * 1000)
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+    await this.repository.createRefreshToken({
+      userId: user.id,
+      tokenHash: hashToken(refreshToken),
+      expiresAt: refreshExpiresAt,
+      userAgent: context.userAgent,
+      ipAddress: context.ipAddress
+    })
 
     return {
-      access_token,
-      access_expires_at: decoded?.exp ? new Date(decoded.exp * 1000).toISOString() : null,
-      user: toAuthUserResponse(updated_user)
+      response: {
+        access_token: accessToken,
+        access_expires_at: decoded?.exp ? new Date(decoded.exp * 1000).toISOString() : null,
+        user: authMapper(updatedUser)
+      },
+      refreshToken,
+      refreshExpiresAt
     }
   }
 
-  logout(): null {
-    return null
+  public async logout(refreshToken?: string): Promise<void> {
+    if (refreshToken) {
+      await this.repository.revokeRefreshToken(hashToken(refreshToken), new Date())
+    }
+  }
+
+  public async verifyToken(dto: VerifyTokenDTO): Promise<VerifyTokenResponseDTO> {
+    const verifyToken = await this.repository.findVerifyTokenByHash(hashToken(dto.token))
+
+    if (!verifyToken) {
+      throw new AppError('Invalid verification token', HttpStatus.BAD_REQUEST)
+    }
+
+    if (verifyToken.user.is_deleted) {
+      throw new AppError('Your account has been deleted. Please contact support', HttpStatus.FORBIDDEN)
+    }
+
+    if (verifyToken.used_at) {
+      throw new AppError('Verification token has already been used', HttpStatus.BAD_REQUEST)
+    }
+
+    if (verifyToken.expires_at.getTime() <= Date.now()) {
+      throw new AppError('Verification token has expired', HttpStatus.BAD_REQUEST)
+    }
+
+    const isActivated = await this.repository.activateUserByVerifyToken(verifyToken.id, verifyToken.user_id, new Date())
+
+    if (!isActivated) {
+      throw new AppError('Verification token has already been used', HttpStatus.BAD_REQUEST)
+    }
+
+    return { verified: true }
+  }
+
+  public async resendVerifyToken(dto: ResendVerifyTokenDTO): Promise<ResendVerifyTokenResponseDTO> {
+    const user = await this.repository.findUserForVerificationByEmail(dto.email)
+
+    if (!user) {
+      throw new AppError('User not found', HttpStatus.NOT_FOUND)
+    }
+
+    if (user.is_deleted) {
+      throw new AppError('Your account has been deleted. Please contact support', HttpStatus.FORBIDDEN)
+    }
+
+    if (user.is_active) {
+      throw new AppError('Account is already verified', HttpStatus.CONFLICT)
+    }
+
+    const token = generateSecureToken()
+    const sentAt = new Date()
+    const expiresAt = new Date(sentAt.getTime() + VERIFY_TOKEN_EXPIRES_IN_MS)
+
+    await this.repository.createVerifyToken({
+      userId: user.id,
+      tokenHash: hashToken(token),
+      redirectUrl: dto.redirect_url,
+      expiresAt,
+      sentAt
+    })
+
+    return {
+      expires_at: expiresAt.toISOString(),
+      redirect_url: dto.redirect_url ?? null,
+      verification_token: env.NODE_ENV === 'production' ? undefined : token
+    }
   }
 }

@@ -1,12 +1,16 @@
 import type { NextFunction, Request, Response } from 'express'
 import type { ZodType } from 'zod'
 
-import { AppError } from '../errors/app-error.js'
+import { AppError } from '../errors'
 
 interface RequestSchemaData {
   body?: unknown
   params?: unknown
   query?: unknown
+}
+
+export type ValidatedRequest = Request & {
+  validated?: RequestSchemaData
 }
 
 export function validateRequest(schema: ZodType<RequestSchemaData>) {
@@ -22,8 +26,11 @@ export function validateRequest(schema: ZodType<RequestSchemaData>) {
       return
     }
 
+    const validatedReq = req as ValidatedRequest
+
     req.body = result.data.body ?? req.body
     req.params = (result.data.params ?? req.params) as Request['params']
+    validatedReq.validated = result.data
 
     next()
   }
