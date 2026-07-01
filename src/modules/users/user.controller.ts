@@ -1,6 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
 
-import type { ValidatedRequest } from '~/core/middlewares/validate.middleware'
 import type { CreateUserDTO, SearchUserDTO, UpdateUserDTO, UserAvatarUploadDTO } from './user.dto'
 import UserService from './user.service'
 import type { UserIdParamsInput } from './user.schema'
@@ -10,7 +9,7 @@ export default class UserController {
 
   public getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const query = (req as ValidatedRequest).validated?.query as SearchUserDTO
+      const query = req.validated?.query as SearchUserDTO
       const response = await this.service.getAll(query)
 
       res.status(200).json({
