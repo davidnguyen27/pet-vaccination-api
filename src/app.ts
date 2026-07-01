@@ -4,11 +4,13 @@ import express, { type Request, type Response } from 'express'
 
 import { errorMiddleware } from './core/middlewares/error.middleware'
 import AuthRoute from './modules/auth/auth.route'
+import OwnerProfileRoute from './modules/owner-profile/owner-profile.route'
 import SpeciesRoute from './modules/species/species.route'
 import UserRoute from './modules/users/user.route'
 
 export const app = express()
 const authRoute = new AuthRoute()
+const ownerProfileRoute = new OwnerProfileRoute()
 const speciesRoute = new SpeciesRoute()
 const userRoute = new UserRoute()
 
@@ -25,6 +27,7 @@ app.get('/health', (_req: Request, res: Response) => {
 })
 
 app.use('/auth', authRoute.router)
+app.use('/owner-profile', ownerProfileRoute.router)
 app.use('/species', speciesRoute.router)
 app.use('/users', userRoute.router)
 
