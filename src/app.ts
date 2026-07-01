@@ -4,10 +4,12 @@ import express, { type Request, type Response } from 'express'
 
 import { errorMiddleware } from './core/middlewares/error.middleware'
 import AuthRoute from './modules/auth/auth.route'
+import SpeciesRoute from './modules/species/species.route'
 import UserRoute from './modules/users/user.route'
 
 export const app = express()
 const authRoute = new AuthRoute()
+const speciesRoute = new SpeciesRoute()
 const userRoute = new UserRoute()
 
 app.use(cors())
@@ -23,6 +25,7 @@ app.get('/health', (_req: Request, res: Response) => {
 })
 
 app.use('/auth', authRoute.router)
+app.use('/species', speciesRoute.router)
 app.use('/users', userRoute.router)
 
 app.use(errorMiddleware)
