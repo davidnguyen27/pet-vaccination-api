@@ -23,15 +23,14 @@ Routes must not contain:
 - Token generation
 - Complex condition handling
 - Response formatting logic
+- Manual validation logic
 
 Good:
 
 ```ts
-router.post(
-  '/users',
-  validateRequest(createUserSchema),
-  userController.create
-)
+router.post('/users', validateBody(CreateUserBodyDto), userController.create)
+router.get('/users', validateQuery(GetUsersQueryDto), userController.getList)
+router.get('/users/:userId', validateParams(UserIdParamsDto), userController.getById)
 ```
 
 Bad:
@@ -42,6 +41,43 @@ router.post('/users', async (req, res) => {
   res.json(user)
 })
 ```
+
+Bad:
+
+```ts
+router.post('/users', async (req, res) => {
+  if (!req.body.email) {
+    return res.status(422).json({ message: 'Email is required' })
+  }
+
+  const result = await userService.createUser(req.body)
+  res.json(result)
+})
+```
+
+---
+
+## Validation Middleware Rules
+
+Use `class-validator` DTO classes through validation middleware.
+
+Recommended middleware names:
+
+```txt
+validateBody(DtoClass)
+validateQuery(DtoClass)
+validateParams(DtoClass)
+```
+
+The middleware should:
+
+1. Convert plain request data to DTO instance with `class-transformer`.
+2. Validate the DTO with `class-validator`.
+3. Reject invalid input before the controller.
+4. Return the project validation error response shape.
+5. Keep behavior consistent across body, query, and params.
+
+Do not instantiate DTOs or run decorator validation manually inside controllers.
 
 ---
 
@@ -77,6 +113,9 @@ export class UserController {
 }
 ```
 
+If the project attaches validated data to a custom request property, use that convention consistently.
+Do not introduce a new request shape without updating the shared Express types.
+
 ---
 
 ## Service Rules
@@ -91,6 +130,7 @@ Services may:
 - Generate tokens
 - Validate domain conditions
 - Use transactions through repositories
+- Map DTO input to domain/service input when needed
 
 Services must not:
 
@@ -98,6 +138,7 @@ Services must not:
 - Return raw Prisma errors
 - Format HTTP responses
 - Depend on route/controller details
+- Run class-validator decorators directly
 
 ---
 
@@ -119,6 +160,7 @@ Repositories must not:
 - Contain business decisions
 - Generate tokens
 - Hash passwords
+- Validate request DTOs
 
 ---
 

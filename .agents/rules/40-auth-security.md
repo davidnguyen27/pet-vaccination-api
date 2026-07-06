@@ -29,6 +29,7 @@ Login:
 
 ```txt
 POST /auth/login
+-> validate LoginBodyDto
 -> validate credentials
 -> issue access token
 -> set refresh token cookie
@@ -54,12 +55,46 @@ POST /auth/logout
 
 ---
 
+## Auth DTO Rules
+
+Use class-validator DTOs for auth request input.
+
+Recommended DTO names:
+
+```txt
+LoginBodyDto
+RegisterBodyDto
+ChangePasswordBodyDto
+ForgotPasswordBodyDto
+ResetPasswordBodyDto
+```
+
+Example:
+
+```ts
+import { IsEmail, IsString, MinLength } from 'class-validator'
+
+export class LoginBodyDto {
+  @IsEmail()
+  email!: string
+
+  @IsString()
+  @MinLength(8)
+  password!: string
+}
+```
+
+Do not validate tokens, roles, or user identity from request body when they should come from cookie, header, or verified JWT payload.
+
+---
+
 ## Password Rules
 
 - Never store plain text passwords.
 - Hash password before saving.
 - Compare password using a safe password comparison function.
 - Do not return password fields in API responses.
+- Password fields are allowed in request DTOs only when the endpoint requires them.
 
 ---
 
@@ -116,3 +151,4 @@ Do not:
 - Trust user ID from request body when it should come from token
 - Put secret keys directly in code
 - Log access tokens or refresh tokens
+- Put auth business logic inside DTO classes

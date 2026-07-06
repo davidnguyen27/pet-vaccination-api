@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
 
+import { formatResponse } from '~/core'
 import { env } from '~/core/env'
 import { REFRESH_TOKEN_COOKIE_NAME } from '~/core/constants/auth.constant'
 
@@ -26,11 +27,7 @@ export class AuthController {
         expires: result.refreshExpiresAt
       })
 
-      res.status(200).json({
-        success: true,
-        message: 'Login successfully',
-        data: result.response
-      })
+      res.status(200).json(formatResponse(result.response))
     } catch (error) {
       next(error)
     }
@@ -49,10 +46,7 @@ export class AuthController {
         sameSite: 'lax'
       })
 
-      res.status(200).json({
-        success: true,
-        message: 'Logout successfully'
-      })
+      res.status(200).json(formatResponse(null))
     } catch (error) {
       next(error)
     }
@@ -63,11 +57,7 @@ export class AuthController {
       const dto = req.body as VerifyTokenDTO
       const response = await this.service.verifyToken(dto)
 
-      res.status(200).json({
-        success: true,
-        message: 'Account verified successfully',
-        data: response
-      })
+      res.status(200).json(formatResponse(response))
     } catch (error) {
       next(error)
     }
@@ -78,11 +68,7 @@ export class AuthController {
       const dto = req.body as ResendVerifyTokenDTO
       const response = await this.service.resendVerifyToken(dto)
 
-      res.status(200).json({
-        success: true,
-        message: 'Verification token generated successfully',
-        data: response
-      })
+      res.status(200).json(formatResponse(response))
     } catch (error) {
       next(error)
     }

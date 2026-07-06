@@ -1,0 +1,906 @@
+openapi: 3.0.3
+info:
+  title: Pet Vaccination API
+  version: 1.0.0
+  description: API documentation for the Pet Vaccination Management System backend.
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PageQuery:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    LimitQuery:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+  schemas:
+    PaginationResponseModel:
+      type: object
+      required:
+        - pageNum
+        - pageSize
+        - totalItems
+        - totalPages
+      properties:
+        pageNum:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        errors: {}
+    ValidationErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+        - errors
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        errors:
+          type: object
+          required:
+            - formErrors
+            - fieldErrors
+          properties:
+            formErrors:
+              type: array
+              items:
+                type: string
+            fieldErrors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+            - ADMIN
+            - STAFF
+            - VET
+            - OWNER
+        is_active:
+          type: boolean
+        is_deleted:
+          type: boolean
+        full_name:
+          type: string
+          nullable: true
+        phone_number:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+          nullable: true
+        dob:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+            - ADMIN
+            - STAFF
+            - VET
+            - OWNER
+        is_active:
+          type: boolean
+        is_deleted:
+          type: boolean
+        full_name:
+          type: string
+          nullable: true
+        phone_number:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+          nullable: true
+        dob:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+    Species:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          enum:
+            - DOG
+            - CAT
+        name:
+          type: string
+          maxLength: 255
+        default_vaccine_plan:
+          type: boolean
+        is_deleted:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+    ProfileUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+            - ADMIN
+            - STAFF
+            - VET
+            - OWNER
+        full_name:
+          type: string
+          nullable: true
+        phone_number:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+          nullable: true
+    OwnerProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        address:
+          type: string
+          nullable: true
+        location_lat:
+          type: number
+          nullable: true
+        location_lng:
+          type: number
+          nullable: true
+        total_points:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/ProfileUser'
+    StaffProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        job_title:
+          type: string
+          nullable: true
+        department:
+          type: string
+          nullable: true
+        employment_type:
+          type: string
+          enum:
+            - FULL_TIME
+            - PART_TIME
+        employment_status:
+          type: string
+          enum:
+            - WORKING
+            - ON_LEAVE
+        join_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+          nullable: true
+        address:
+          type: string
+        citizen_id:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/ProfileUser'
+    VetProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        bio:
+          type: string
+        license_no:
+          type: string
+        license_issue_by:
+          type: string
+        license_valid_from:
+          type: string
+          format: date-time
+        license_valid_to:
+          type: string
+          format: date-time
+        join_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+          nullable: true
+        address:
+          type: string
+        citizen_id:
+          type: string
+        employment_status:
+          type: string
+          enum:
+            - WORKING
+            - ON_LEAVE
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/ProfileUser'
+  responses:
+    BadRequestError:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ForbiddenError:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ConflictError:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+    description: Auth related endpoints
+  - name: Users
+    description: Users related endpoints
+  - name: Species
+    description: Species related endpoints
+  - name: OwnerProfile
+    description: OwnerProfile related endpoints
+  - name: StaffProfile
+    description: StaffProfile related endpoints
+  - name: VetProfile
+    description: VetProfile related endpoints
+paths:
+  /vet-profile:
+    get:
+      tags:
+        - VetProfile
+      summary: Get vet profiles
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - VetProfile
+      summary: Create vet profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - bio
+                - license_no
+                - license_issue_by
+                - license_valid_from
+                - license_valid_to
+                - join_date
+                - address
+                - citizen_id
+                - employment_status
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                bio:
+                  type: string
+                license_no:
+                  type: string
+                license_issue_by:
+                  type: string
+                license_valid_from:
+                  type: string
+                  format: date-time
+                license_valid_to:
+                  type: string
+                  format: date-time
+                join_date:
+                  type: string
+                  format: date-time
+                address:
+                  type: string
+                citizen_id:
+                  type: string
+                employment_status:
+                  type: string
+                  enum:
+                    - WORKING
+                    - ON_LEAVE
+      responses:
+        '201':
+          description: Created
+  /vet-profile/{id}:
+    get:
+      tags:
+        - VetProfile
+      summary: Get vet profile by id
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Success
+    patch:
+      tags:
+        - VetProfile
+      summary: Update vet profile
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - VetProfile
+      summary: Delete vet profile
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Success
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Get users
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Users
+      summary: Create user
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                role:
+                  type: string
+                  enum:
+                    - ADMIN
+                    - STAFF
+                    - VET
+                    - OWNER
+                full_name:
+                  type: string
+                phone_number:
+                  type: string
+                avatar:
+                  type: string
+                  format: binary
+                dob:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Created
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by id
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Success
+    patch:
+      tags:
+        - Users
+      summary: Update user
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Success
+  /staff-profile:
+    get:
+      tags:
+        - StaffProfile
+      summary: Get staff profiles
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - StaffProfile
+      summary: Create staff profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - code
+                - employment_type
+                - employment_status
+                - join_date
+                - address
+                - citizen_id
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                code:
+                  type: string
+                employment_type:
+                  type: string
+                  enum:
+                    - FULL_TIME
+                    - PART_TIME
+                employment_status:
+                  type: string
+                  enum:
+                    - WORKING
+                    - ON_LEAVE
+                join_date:
+                  type: string
+                  format: date-time
+                address:
+                  type: string
+                citizen_id:
+                  type: string
+      responses:
+        '201':
+          description: Created
+  /staff-profile/{id}:
+    get:
+      tags:
+        - StaffProfile
+      summary: Get staff profile by id
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Success
+    patch:
+      tags:
+        - StaffProfile
+      summary: Update staff profile
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - StaffProfile
+      summary: Delete staff profile
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Success
+  /species:
+    get:
+      tags:
+        - Species
+      summary: Get species
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - Species
+      summary: Create species
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - name
+              properties:
+                code:
+                  type: string
+                  enum:
+                    - DOG
+                    - CAT
+                name:
+                  type: string
+                default_vaccine_plan:
+                  type: boolean
+      responses:
+        '201':
+          description: Created
+  /species/{id}:
+    get:
+      tags:
+        - Species
+      summary: Get species by id
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Success
+    patch:
+      tags:
+        - Species
+      summary: Update species
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - Species
+      summary: Delete species
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Success
+  /owner-profile:
+    get:
+      tags:
+        - OwnerProfile
+      summary: Get owner profiles
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        '200':
+          description: Success
+    post:
+      tags:
+        - OwnerProfile
+      summary: Create owner profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                address:
+                  type: string
+                location_lat:
+                  type: number
+                location_lng:
+                  type: number
+      responses:
+        '201':
+          description: Created
+  /owner-profile/{id}:
+    get:
+      tags:
+        - OwnerProfile
+      summary: Get owner profile by id
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Success
+    patch:
+      tags:
+        - OwnerProfile
+      summary: Update owner profile
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Success
+    delete:
+      tags:
+        - OwnerProfile
+      summary: Delete owner profile
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Success
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Success
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout
+      security: []
+      responses:
+        '200':
+          description: Success
+  /auth/verify-token:
+    post:
+      tags:
+        - Auth
+      summary: Verify account token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Success
+  /auth/resend-token:
+    post:
+      tags:
+        - Auth
+      summary: Resend verification token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                redirect_url:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Success

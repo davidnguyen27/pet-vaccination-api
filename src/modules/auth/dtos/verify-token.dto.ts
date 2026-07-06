@@ -1,6 +1,14 @@
-import { VerifyTokenInput } from '../auth.schema'
+import { Transform } from 'class-transformer'
+import { IsNotEmpty, IsString } from 'class-validator'
 
-export type VerifyTokenDTO = VerifyTokenInput
+export class VerifyTokenBodyDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @IsNotEmpty()
+  token!: string
+}
+
+export type VerifyTokenDTO = VerifyTokenBodyDto
 
 export interface VerifyTokenResponseDTO {
   verified: boolean

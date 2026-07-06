@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
 
 import { HttpStatus } from '~/core/enums/http-status'
-import { AppError } from '~/core/errors'
+import { HttpException } from '~/core/exceptions'
 
 const JSON_PROFILE_FIELDS = ['owner', 'staff', 'vet'] as const
 
@@ -17,6 +17,6 @@ export function parseCreateUserFormData(req: Request, _res: Response, next: Next
 
     next()
   } catch {
-    next(new AppError('Invalid profile JSON in multipart form data', HttpStatus.BAD_REQUEST))
+    next(new HttpException(HttpStatus.BAD_REQUEST, 'Invalid profile JSON in multipart form data'))
   }
 }

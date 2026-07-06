@@ -1,4 +1,4 @@
-import { AppError } from '~/core/errors'
+import { HttpException } from '~/core/exceptions'
 import { HttpStatus } from '~/core/enums/http-status'
 
 import type { CreateSpeciesDTO } from './dtos/create-species.dto'
@@ -33,7 +33,7 @@ export default class SpeciesService {
     const species = await this.repository.findById(id)
 
     if (!species) {
-      throw new AppError('Species not found', HttpStatus.NOT_FOUND)
+      throw new HttpException(HttpStatus.NOT_FOUND, 'Species not found')
     }
 
     return speciesMapper(species)
@@ -52,7 +52,7 @@ export default class SpeciesService {
     await this.getById(id)
 
     if (Object.keys(dto).length === 0) {
-      throw new AppError('At least one field is required', HttpStatus.BAD_REQUEST)
+      throw new HttpException(HttpStatus.BAD_REQUEST, 'At least one field is required')
     }
 
     if (dto.code) {
@@ -80,7 +80,7 @@ export default class SpeciesService {
     const existingSpecies = await this.repository.findByCode(code)
 
     if (existingSpecies && existingSpecies.id !== currentId) {
-      throw new AppError('Species code already exists', HttpStatus.CONFLICT)
+      throw new HttpException(HttpStatus.CONFLICT, 'Species code already exists')
     }
   }
 
@@ -88,7 +88,7 @@ export default class SpeciesService {
     const existingSpecies = await this.repository.findByName(name)
 
     if (existingSpecies && existingSpecies.id !== currentId) {
-      throw new AppError('Species name already exists', HttpStatus.CONFLICT)
+      throw new HttpException(HttpStatus.CONFLICT, 'Species name already exists')
     }
   }
 }

@@ -8,7 +8,7 @@ Backend API for the Pet Vaccination Management System. The project supports clin
 - TypeScript
 - PostgreSQL
 - Prisma ORM
-- Zod validation
+- class-validator and class-transformer for request validation
 - JWT authentication
 - pnpm
 
@@ -135,6 +135,6 @@ POST /auth/logout
 
 - Keep business logic in services.
 - Keep Prisma access inside repositories.
-- Validate external input with Zod schemas.
+- Validate external input with class-validator DTO classes.
 - Use centralized error handling through `AppError`.
 - Do not edit `generated/prisma` manually; run `pnpm db:generate` after schema changes.

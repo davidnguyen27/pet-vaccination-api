@@ -1,10 +1,10 @@
 import bcrypt from 'bcryptjs'
 
-import { AppError } from '~/core/errors'
+import { HttpException } from '~/core/exceptions'
 import { HttpStatus } from '~/core/enums/http-status'
 import { PASSWORD_SALT_ROUNDS } from '~/core/constants/user.constant'
 import { env } from '~/core/env'
-import { uploadImageBuffer } from '~/core/config/cloudinary.config'
+import { uploadImageBuffer } from '~/core/configs/cloudinary.config'
 
 import type {
   CreateUserDTO,
@@ -42,7 +42,7 @@ export default class UserService {
     const user = await this.repository.findById(id)
 
     if (!user) {
-      throw new AppError('User not found', HttpStatus.NOT_FOUND)
+      throw new HttpException(HttpStatus.NOT_FOUND, 'User not found')
     }
 
     return userMapper(user)
@@ -52,7 +52,7 @@ export default class UserService {
     const existingUser = await this.repository.findByEmail(dto.email)
 
     if (existingUser) {
-      throw new AppError('Email already exists', HttpStatus.CONFLICT)
+      throw new HttpException(HttpStatus.CONFLICT, 'Email already exists')
     }
 
     const avatarUpload = avatarFile
@@ -77,14 +77,14 @@ export default class UserService {
     await this.getById(id)
 
     if (Object.keys(dto).length === 0 && !avatarFile) {
-      throw new AppError('At least one field is required', HttpStatus.BAD_REQUEST)
+      throw new HttpException(HttpStatus.BAD_REQUEST, 'At least one field is required')
     }
 
     if (dto.email) {
       const existingUser = await this.repository.findByEmail(dto.email)
 
       if (existingUser && existingUser.id !== id) {
-        throw new AppError('Email already exists', HttpStatus.CONFLICT)
+        throw new HttpException(HttpStatus.CONFLICT, 'Email already exists')
       }
     }
 

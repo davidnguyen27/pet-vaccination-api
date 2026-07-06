@@ -24,7 +24,7 @@ Tech stack:
 - Prisma ORM
 - PostgreSQL
 - pnpm
-- Zod for validation
+- class-validator and class-transformer for validation
 - JWT authentication
 - Cookie-based refresh token flow
 
@@ -54,16 +54,17 @@ Do not add a testing step unless the user explicitly asks for tests.
 Use layered architecture:
 
 ```txt
-Route -> Controller -> Service -> Repository -> Prisma -> Database
+Route -> Validation Middleware -> Controller -> Service -> Repository -> Prisma -> Database
 ```
 
 Rules:
 
 1. Route only defines endpoint and middleware.
-2. Controller handles request and response.
-3. Service contains business logic.
-4. Repository contains Prisma database access.
-5. Prisma should not be used directly in controllers or routes.
+2. Validation middleware validates DTO classes.
+3. Controller handles request and response.
+4. Service contains business logic.
+5. Repository contains Prisma database access.
+6. Prisma should not be used directly in controllers or routes.
 
 ---
 
@@ -90,7 +91,7 @@ src/
 │  │  ├─ auth.controller.ts
 │  │  ├─ auth.service.ts
 │  │  ├─ auth.repository.ts
-│  │  ├─ auth.schema.ts
+│  │  ├─ auth.dto.ts
 │  │  └─ auth.type.ts
 │  ├─ users/
 │  ├─ pets/
@@ -107,11 +108,38 @@ src/
 
 ---
 
+## Validation Convention
+
+Use `class-validator` and `class-transformer` for request body, params, and query validation.
+
+Recommended DTO names:
+
+```txt
+CreateUserBodyDto
+UpdateUserBodyDto
+GetUsersQueryDto
+UserIdParamsDto
+LoginBodyDto
+```
+
+Recommended route usage:
+
+```ts
+router.post('/users', validateBody(CreateUserBodyDto), userController.create)
+router.get('/users', validateQuery(GetUsersQueryDto), userController.getList)
+router.get('/users/:userId', validateParams(UserIdParamsDto), userController.getById)
+```
+
+Do not create new Zod schemas for request validation.
+
+---
+
 ## Coding Rules
 
 - Use TypeScript strictly.
 - Avoid `any`. Use explicit types.
-- Use Zod for request body, params, and query validation.
+- Use DTO classes with class-validator for request body, params, and query validation.
+- Use class-transformer when request data needs type conversion.
 - Use async/await.
 - Do not swallow errors.
 - Do not use `console.log` for production code.

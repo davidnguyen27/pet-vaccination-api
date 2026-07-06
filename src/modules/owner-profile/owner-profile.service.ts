@@ -1,7 +1,7 @@
 import { RoleCode } from 'generated/prisma/enums'
 
 import { HttpStatus } from '~/core/enums/http-status'
-import { AppError } from '~/core/errors'
+import { HttpException } from '~/core/exceptions'
 
 import type { CreateOwnerProfileDTO } from './dtos/create-owner-profile.dto'
 import type { OwnerProfileListResponseDTO, OwnerProfileResponseDTO } from './dtos/owner-profile-response.dto'
@@ -35,7 +35,7 @@ export default class OwnerProfileService {
     const ownerProfile = await this.repository.findById(id)
 
     if (!ownerProfile) {
-      throw new AppError('Owner profile not found', HttpStatus.NOT_FOUND)
+      throw new HttpException(HttpStatus.NOT_FOUND, 'Owner profile not found')
     }
 
     return ownerProfileMapper(ownerProfile)
@@ -47,7 +47,7 @@ export default class OwnerProfileService {
     const existingOwnerProfile = await this.repository.findByUserId(dto.user_id)
 
     if (existingOwnerProfile) {
-      throw new AppError('Owner profile already exists for this user', HttpStatus.CONFLICT)
+      throw new HttpException(HttpStatus.CONFLICT, 'Owner profile already exists for this user')
     }
 
     const ownerProfile = await this.repository.create(dto)
@@ -59,7 +59,7 @@ export default class OwnerProfileService {
     await this.getById(id)
 
     if (Object.keys(dto).length === 0) {
-      throw new AppError('At least one field is required', HttpStatus.BAD_REQUEST)
+      throw new HttpException(HttpStatus.BAD_REQUEST, 'At least one field is required')
     }
 
     const ownerProfile = await this.repository.update(id, dto)
@@ -74,9 +74,9 @@ export default class OwnerProfileService {
     const hasDependencies = Object.values(dependencyCounts).some((count) => count > 0)
 
     if (hasDependencies) {
-      throw new AppError(
-        'Owner profile has related records and cannot be deleted',
+      throw new HttpException(
         HttpStatus.CONFLICT,
+        'Owner profile has related records and cannot be deleted',
         dependencyCounts
       )
     }
@@ -90,11 +90,11 @@ export default class OwnerProfileService {
     const user = await this.repository.findUserById(userId)
 
     if (!user || user.is_deleted) {
-      throw new AppError('User not found', HttpStatus.NOT_FOUND)
+      throw new HttpException(HttpStatus.NOT_FOUND, 'User not found')
     }
 
     if (user.role !== RoleCode.OWNER) {
-      throw new AppError('User must have OWNER role', HttpStatus.BAD_REQUEST)
+      throw new HttpException(HttpStatus.BAD_REQUEST, 'User must have OWNER role')
     }
   }
 }

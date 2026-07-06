@@ -42,9 +42,28 @@ Avoid Prisma import in:
 *.route.ts
 *.controller.ts
 *.service.ts
+*.dto.ts
 ```
 
 Service may use repository transaction methods, but should not call Prisma directly.
+
+---
+
+## DTO And Database Boundary
+
+DTO classes are for request validation only.
+
+Do not treat DTO classes as Prisma models.
+Do not import Prisma into DTO files.
+Do not pass raw request DTOs directly into Prisma when mapping or filtering is needed.
+
+Preferred flow:
+
+```txt
+DTO -> controller/service input -> repository method -> Prisma data
+```
+
+The service or repository should map request fields to database fields when needed.
 
 ---
 

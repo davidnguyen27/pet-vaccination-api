@@ -40,12 +40,32 @@ Example:
 
 ```txt
 POST /users
--> validateCreateUser
+-> validateBody(CreateUserBodyDto)
 -> userController.create
 -> userService.createUser
 -> userRepository.create
 -> prisma.user.create
 ```
+
+---
+
+## Validation Standard
+
+This project uses `class-validator` and `class-transformer` for request validation.
+
+Use DTO classes for external input:
+
+```txt
+CreateUserBodyDto
+GetUsersQueryDto
+UserIdParamsDto
+LoginBodyDto
+```
+
+Validation must happen in middleware before the controller.
+
+Do not create new Zod schemas.
+Do not mix Zod and class-validator in the same feature unless the user explicitly asks for a migration step.
 
 ---
 
@@ -56,8 +76,10 @@ POST /users
 - Avoid `any`.
 - Use `unknown` for unknown error values.
 - Use explicit return types for exported functions.
-- Use DTO/request types for incoming data.
-- Use response types for API output when useful.
+- Use DTO classes for validated request input.
+- Use response interfaces/types for API output when useful.
+- Use definite assignment (`!`) or optional fields (`?`) in DTO classes when needed.
+- Keep DTOs at the HTTP boundary. Map DTOs to service input or repository data when needed.
 
 ---
 
@@ -92,7 +114,7 @@ user.route.ts
 user.controller.ts
 user.service.ts
 user.repository.ts
-user.schema.ts
+user.dto.ts
 user.type.ts
 ```
 
@@ -102,6 +124,9 @@ Recommended class naming:
 UserController
 UserService
 UserRepository
+CreateUserBodyDto
+GetUsersQueryDto
+UserIdParamsDto
 ```
 
 Recommended function naming:

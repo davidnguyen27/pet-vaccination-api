@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
 import { env } from '~/core/env'
-import { AppError } from '~/core/errors'
+import { HttpException } from '~/core/exceptions'
 import { HttpStatus } from '~/core/enums/http-status'
 import { VERIFY_TOKEN_EXPIRES_IN_MS } from '~/core/constants/auth.constant'
 
@@ -31,17 +31,17 @@ export default class AuthService {
     const user = await this.repository.findUserByEmail(dto.email)
 
     if (!user || !user.is_active) {
-      throw new AppError('Please activate your account first', HttpStatus.BAD_REQUEST)
+      throw new HttpException(HttpStatus.BAD_REQUEST, 'Please activate your account first')
     }
 
     if (user.is_deleted) {
-      throw new AppError('Your account has been deleted. Please contact support', HttpStatus.FORBIDDEN)
+      throw new HttpException(HttpStatus.FORBIDDEN, 'Your account has been deleted. Please contact support')
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.password)
 
     if (!isPasswordValid) {
-      throw new AppError('Invalid email or password', HttpStatus.UNAUTHORIZED)
+      throw new HttpException(HttpStatus.UNAUTHORIZED, 'Invalid email or password')
     }
 
     const payload: AuthJwtPayload = {
@@ -92,25 +92,25 @@ export default class AuthService {
     const verifyToken = await this.repository.findVerifyTokenByHash(hashToken(dto.token))
 
     if (!verifyToken) {
-      throw new AppError('Invalid verification token', HttpStatus.BAD_REQUEST)
+      throw new HttpException(HttpStatus.BAD_REQUEST, 'Invalid verification token')
     }
 
     if (verifyToken.user.is_deleted) {
-      throw new AppError('Your account has been deleted. Please contact support', HttpStatus.FORBIDDEN)
+      throw new HttpException(HttpStatus.FORBIDDEN, 'Your account has been deleted. Please contact support')
     }
 
     if (verifyToken.used_at) {
-      throw new AppError('Verification token has already been used', HttpStatus.BAD_REQUEST)
+      throw new HttpException(HttpStatus.BAD_REQUEST, 'Verification token has already been used')
     }
 
     if (verifyToken.expires_at.getTime() <= Date.now()) {
-      throw new AppError('Verification token has expired', HttpStatus.BAD_REQUEST)
+      throw new HttpException(HttpStatus.BAD_REQUEST, 'Verification token has expired')
     }
 
     const isActivated = await this.repository.activateUserByVerifyToken(verifyToken.id, verifyToken.user_id, new Date())
 
     if (!isActivated) {
-      throw new AppError('Verification token has already been used', HttpStatus.BAD_REQUEST)
+      throw new HttpException(HttpStatus.BAD_REQUEST, 'Verification token has already been used')
     }
 
     return { verified: true }
@@ -120,15 +120,15 @@ export default class AuthService {
     const user = await this.repository.findUserForVerificationByEmail(dto.email)
 
     if (!user) {
-      throw new AppError('User not found', HttpStatus.NOT_FOUND)
+      throw new HttpException(HttpStatus.NOT_FOUND, 'User not found')
     }
 
     if (user.is_deleted) {
-      throw new AppError('Your account has been deleted. Please contact support', HttpStatus.FORBIDDEN)
+      throw new HttpException(HttpStatus.FORBIDDEN, 'Your account has been deleted. Please contact support')
     }
 
     if (user.is_active) {
-      throw new AppError('Account is already verified', HttpStatus.CONFLICT)
+      throw new HttpException(HttpStatus.CONFLICT, 'Account is already verified')
     }
 
     const token = generateSecureToken()
